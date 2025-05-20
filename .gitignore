@@ -1,0 +1,16 @@
+# Ignore common build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.exp
+*.pdb
+
+# Ignore output folders
+build/
+bin/
+out/
+
+# Ignore logs
+*.log
