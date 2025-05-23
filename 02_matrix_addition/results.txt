@@ -1,0 +1,12 @@
+Matrix Addition Performance Results (1D Threads) 
+---------------------------------------------
+Matrix Dimensions: 2048 x 2048
+Total Elements: 4194304
+CPU Performance:
+ Execution Time: 3.4692 ms
+Performance: 0.00120901 TFLOPS/s
+
+GPU Performance (Kernel Only):
+ Execution Time: 0.482272 ms
+Performance: 0.00869697 TFLOPS/s
+

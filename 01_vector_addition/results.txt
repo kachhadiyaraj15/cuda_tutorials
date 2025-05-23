@@ -1,4 +1,0 @@
-N: 1048576
-CPU avg time (ms): 0.45053
-GPU avg time (ms): 0.09772
-Results match: Yes
