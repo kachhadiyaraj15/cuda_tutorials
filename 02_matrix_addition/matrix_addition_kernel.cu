@@ -20,8 +20,8 @@ void check(cudaError_t err, const char* const func, const char* const file, cons
 }
 
 // Define constants for matrix dimensions (you can change these)
-#define MATRIX_ROWS 2048
-#define MATRIX_COLS 2048
+#define MATRIX_ROWS 4096
+#define MATRIX_COLS 4096
 
 __global__ void matrixAddKernel_1D(const float* A, const float* B, float* C, int rows, int cols){
     int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
@@ -159,7 +159,7 @@ int main(){
     // -- GPU Matrix Addition (2D threds) --
     cout << "\n--- Performing GPU Matrix Addition (2D threads) ---\n" << endl;
 
-    // define 2D thred block dimensions
+    // define 2D thred block dimensions (16 x 16 )
     const int TILE_DIM = 16;
     dim3 threadPerBlock2D(TILE_DIM, TILE_DIM);
 

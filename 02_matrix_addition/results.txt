@@ -1,15 +1,15 @@
 Matrix Addition Performance Results (1D Threads vs 2D threads) 
 ---------------------------------------------
-Matrix Dimensions: 2048 x 2048
-Total Elements: 4194304
+Matrix Dimensions: 4096 x 4096
+Total Elements: 16777216
 CPU Performance:
- Execution Time: 2.5554 ms
-Performance: 0.00164135 TFLOPS/s
+ Execution Time: 9.7015 ms
+Performance: 0.00172934 TFLOPS/s
 
 GPU 1D Thread Performance (Kernel only):
-  Execution Time: 0.741152 ms
-  TFLOPS/s: 0.00565917
+  Execution Time: 1.39942 ms
+  TFLOPS/s: 0.0119887
 
 GPU 2D Thread Performance (Kernel only):
-  Execution Time: 0.309248 ms
-  TFLOPS/s: 0.0135629
+  Execution Time: 1.20934 ms
+  TFLOPS/s: 0.013873
