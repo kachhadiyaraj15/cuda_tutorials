@@ -23,11 +23,25 @@ void check(cudaError_t err, const char* const func, const char* const file, cons
 #define MATRIX_ROWS 2048
 #define MATRIX_COLS 2048
 
-__global__ void matrixAddKernel(const float* A, const float* B, float* C, int rows, int cols){
+__global__ void matrixAddKernel_1D(const float* A, const float* B, float* C, int rows, int cols){
     int globalIndex = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (globalIndex < (rows * cols)){
         C[globalIndex] = A[globalIndex] + B[globalIndex];
+    }
+}
+
+// -- CUDA kernel for matrix addition using  2D thread Indexing --
+__global__ void matrixAddKernel_2D(const float* A, const float* B, float* C, int rows, int cols){
+    // Calculate the row and column index for the current thread
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int idx = row * cols + col;
+
+    // Check if the thread is within the bounds of the matrix
+    if (row < rows && col < cols){
+        C[idx] = A[idx] + B[idx];
     }
 }
 
@@ -62,7 +76,8 @@ int main(){
     vector<float> h_A(matrixSize); // Host Matrix A
     vector<float> h_B(matrixSize); // Host Matrix B
     vector<float> h_C_cpu(matrixSize); // Host Matrix C (CPU)
-    vector<float> h_C_gpu(matrixSize); // Host Matrix C (GPU)
+    vector<float> h_C_gpu_1D(matrixSize); // Host Matrix C (GPU) 1D
+    vector<float> h_C_gpu_2D(matrixSize); // Host Matrix C (GPU) 2D
 
     // Initialize host matrices A and B with some values
     for (size_t i = 0 ; i< matrixSize; i++){
@@ -109,9 +124,9 @@ int main(){
     // Calculate 1D grid dimensions
     dim3 numBlocks((matrixSize + threadPerBlock_1D - 1) / threadPerBlock_1D); 
 
-    cout << "Thread per block (1D): " << threadPerBlock_1D << endl;
-    cout << "Number of blocks (1D): " << numBlocks.x << endl;
-    cout << "Total CUDA threads launched: " << (long long)numBlocks.x * threadPerBlock_1D << endl;
+    cout << "1D Config - Thread per block (1D): " << threadPerBlock_1D << endl;
+    cout << "1D Config - Number of blocks (1D): " << numBlocks.x << endl;
+    cout << "1D Config - Total CUDA threads launched: " << (long long)numBlocks.x * threadPerBlock_1D << endl;
 
     // -- Measure GPU execution time using CUDA events --
     cudaEvent_t start_gpu_event, stop_gpu_event;
@@ -121,51 +136,105 @@ int main(){
     CHECK_CUDA_ERROR(cudaEventRecord(start_gpu_event, 0)); // Start recording the event
 
     // Launch the kernel with 1D configuration
-    matrixAddKernel<<<numBlocks, threadsPerBlock>>>(d_A, d_B, d_C, rows, cols);
+    matrixAddKernel_1D<<<numBlocks, threadsPerBlock>>>(d_A, d_B, d_C, rows, cols);
 
     CHECK_CUDA_ERROR(cudaGetLastError()); // Check for kernel launch errors
 
     CHECK_CUDA_ERROR(cudaEventRecord(stop_gpu_event, 0)); // Stop recording the event
     CHECK_CUDA_ERROR(cudaEventSynchronize(stop_gpu_event));
 
-    float gpu_time_ms;
-    CHECK_CUDA_ERROR(cudaEventElapsedTime(&gpu_time_ms, start_gpu_event, stop_gpu_event)); // Calculate elapsed time
+    float gpu_time_ms_1D;
+    CHECK_CUDA_ERROR(cudaEventElapsedTime(&gpu_time_ms_1D, start_gpu_event, stop_gpu_event)); // Calculate elapsed time
 
-    cout<< "GPU Execution Time (Kernel only): " << gpu_time_ms << " ms" << endl;
+    cout<< "GPU Execution Time (Kernel only): " << gpu_time_ms_1D << " ms" << endl;
 
     long long total_ops_gpu = matrixSize; 
-    double gpu_tflops = calculateTFLOPS(total_ops_gpu, gpu_time_ms);
-    cout << "GPU Performance: " << gpu_tflops << " TFLOPS/s" << endl;
+    double gpu_tflops_1D = calculateTFLOPS(total_ops_gpu, gpu_time_ms_1D);
+    cout << "GPU Performance: " << gpu_tflops_1D << " TFLOPS/s" << endl;
 
-    CHECK_CUDA_ERROR(cudaMemcpy(h_C_gpu.data(), d_C, matrixSizeBytes, cudaMemcpyDeviceToHost)); // Copy result back to host
+    CHECK_CUDA_ERROR(cudaMemcpy(h_C_gpu_1D.data(), d_C, matrixSizeBytes, cudaMemcpyDeviceToHost)); // Copy result back to host
+    CHECK_CUDA_ERROR(cudaEventDestroy(start_gpu_event));
+    CHECK_CUDA_ERROR(cudaEventDestroy(stop_gpu_event));
+
+    // -- GPU Matrix Addition (2D threds) --
+    cout << "\n--- Performing GPU Matrix Addition (2D threads) ---\n" << endl;
+
+    // define 2D thred block dimensions
+    const int TILE_DIM = 16;
+    dim3 threadPerBlock2D(TILE_DIM, TILE_DIM);
+
+    // calculate 2D grid dimensions
+    dim3 numBlocks2D((cols + threadPerBlock2D.x -1) / threadPerBlock2D.x,
+                    (rows + threadPerBlock2D.y -1 )/ threadPerBlock2D.y);
+
+    cout << "2D Config - Threads per block: " << threadPerBlock2D.x << "x" << threadPerBlock2D.y << endl;
+    cout << "2D Config - Number of blocks: " << numBlocks2D.x << "x" << numBlocks2D.y << endl;
+    cout << "2D Config - Total CUDA threads launched: " << (long long)numBlocks2D.x * numBlocks2D.y * threadPerBlock2D.x * threadPerBlock2D.y << endl;
+
+    cudaEvent_t start_gpu_event_2D, stop_gpu_event_2D;
+    CHECK_CUDA_ERROR(cudaEventCreate(&start_gpu_event_2D));
+    CHECK_CUDA_ERROR(cudaEventCreate(&stop_gpu_event_2D));
+
+     // It's good practice to clear the output device buffer if you're reusing it,
+    // although for simple addition, overwriting is fine.
+    CHECK_CUDA_ERROR(cudaMemset(d_C, 0, matrixSizeBytes));
+
+    CHECK_CUDA_ERROR(cudaEventRecord(start_gpu_event_2D, 0));
+    matrixAddKernel_2D<<<numBlocks2D, threadPerBlock2D>>>(d_A, d_B, d_C, rows, cols);
+    CHECK_CUDA_ERROR(cudaGetLastError()); // Check for kernel launch errors
+    CHECK_CUDA_ERROR(cudaEventRecord(stop_gpu_event_2D, 0));
+    CHECK_CUDA_ERROR(cudaEventSynchronize(stop_gpu_event_2D));
+
+    float gpu_time_ms_2D;
+    CHECK_CUDA_ERROR(cudaEventElapsedTime(&gpu_time_ms_2D, start_gpu_event_2D, stop_gpu_event_2D));
+    std::cout << "GPU 2D Execution Time (Kernel only): " << gpu_time_ms_2D << " ms" << std::endl;
+    double gpu_tflops_2D = calculateTFLOPS(total_ops_gpu, gpu_time_ms_2D);
+    std::cout << "GPU 2D Performance: " << gpu_tflops_2D << " TFLOPS/s" << std::endl;
+
+    CHECK_CUDA_ERROR(cudaMemcpy(h_C_gpu_2D.data(), d_C, matrixSizeBytes, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERROR(cudaEventDestroy(start_gpu_event_2D));
+    CHECK_CUDA_ERROR(cudaEventDestroy(stop_gpu_event_2D));
 
     // -- Verify the result --
-    bool success = true;
+    bool success_1D = true;
     for (size_t i = 0; i < matrixSize; i++){
-        if (h_C_gpu[i] != h_C_cpu[i]){
-            cout << "Mismatch at index " << i << ": GPU = " << h_C_gpu[i] << ", CPU = " << h_C_cpu[i] << endl;
-            success = false;
+        if (h_C_gpu_1D[i] != h_C_cpu[i]){
+            cout << "Mismatch at index " << i << ": GPU = " << h_C_gpu_1D[i] << ", CPU = " << h_C_cpu[i] << endl;
+            success_1D = false;
             break;
         }
     }
-    if (success){
+    if (success_1D){
         cout << "\nResults verified: CPU and GPU results match!" << endl;
     }
     else{
         cout << "\nResults verification failed!" << endl;
     }
 
+    bool success_2D = true;
+    for (size_t i = 0; i < matrixSize; ++i) {
+        if (h_C_gpu_2D[i] != h_C_cpu[i]) {
+            std::cerr << "2D GPU Mismatch at index " << i << ": CPU=" << h_C_cpu[i] << ", GPU=" << h_C_gpu_2D[i] << std::endl;
+            success_2D = false;
+            break;
+        }
+    }
+    if (success_2D) {
+        std::cout << "2D GPU results verified: Match CPU results." << std::endl;
+    } else {
+        std::cerr << "2D GPU results Mismatch!" << std::endl;
+    }
+
+
     // -- Clean up --
     CHECK_CUDA_ERROR(cudaFree(d_A));
     CHECK_CUDA_ERROR(cudaFree(d_B));
     CHECK_CUDA_ERROR(cudaFree(d_C));
-    CHECK_CUDA_ERROR(cudaEventDestroy(start_gpu_event));
-    CHECK_CUDA_ERROR(cudaEventDestroy(stop_gpu_event));
 
     // -- Log Results to results.txt --
     ofstream outFile("results.txt");
     if (outFile.is_open()){
-        outFile << "Matrix Addition Performance Results (1D Threads) \n";
+        outFile << "Matrix Addition Performance Results (1D Threads vs 2D threads) \n";
         outFile << "---------------------------------------------\n";
         outFile << "Matrix Dimensions: " << rows << " x " << cols << "\n";
         outFile << "Total Elements: " << matrixSize << "\n";
@@ -174,9 +243,13 @@ int main(){
         outFile << "Execution Time: " << cpu_time_ms << " ms\n";
         outFile << "Performance: " << cpu_tflops << " TFLOPS/s\n\n";
         
-        outFile << "GPU Performance (Kernel Only):\n ";
-        outFile << "Execution Time: " << gpu_time_ms << " ms\n";
-        outFile << "Performance: " << gpu_tflops << " TFLOPS/s\n\n";
+        outFile << "GPU 1D Thread Performance (Kernel only):\n";
+        outFile << "  Execution Time: " << gpu_time_ms_1D << " ms\n";
+        outFile << "  TFLOPS/s: " << gpu_tflops_1D << "\n\n";
+
+        outFile << "GPU 2D Thread Performance (Kernel only):\n";
+        outFile << "  Execution Time: " << gpu_time_ms_2D << " ms\n";
+        outFile << "  TFLOPS/s: " << gpu_tflops_2D << "\n";
         outFile.close();
         cout << "\n Performance results logged to results.txt" << endl;
     }
