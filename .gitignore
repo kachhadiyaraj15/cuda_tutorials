@@ -1,0 +1,7 @@
+# Ignore agents directory
+.agents/
+temp/
+
+# Local editor settings and generated build outputs
+.vscode/
+matmul/build/
