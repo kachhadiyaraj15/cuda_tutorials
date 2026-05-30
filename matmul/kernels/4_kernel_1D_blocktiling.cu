@@ -8,8 +8,6 @@ constexpr int BN = 64;
 constexpr int BK = 8;
 constexpr int TM = 8;
 
-template <const int BLOCKSIZE>
-
 __global__ void sgemm_1d_blocktiling(
     int M, int N, int K, 
     float alpha, 
@@ -105,6 +103,6 @@ void sgemm1DBlocktiling(
         (M + BM - 1) / BM
     );
 
-    sgemm_1d_blocktiling<kBlockSize><<<grid, block, 0, stream>>>(M, N, K, alpha, dA, dB, beta, dC);
+    sgemm_1d_blocktiling<<<grid, block, 0, stream>>>(M, N, K, alpha, dA, dB, beta, dC);
 }
 
