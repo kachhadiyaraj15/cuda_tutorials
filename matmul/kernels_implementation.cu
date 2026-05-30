@@ -10,7 +10,7 @@
 int main() {
     std::srand(0);
 
-    const std::string result_file = "benchmark_results/03_kernel_shared_mem_blocking.csv";
+    const std::string result_file = "benchmark_results/04_kernel_1DBlockTiling.csv";
     const int repeat = 20;
 
     CUDA_CHECK(cudaSetDevice(0));
