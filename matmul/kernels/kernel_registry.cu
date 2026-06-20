@@ -5,9 +5,10 @@
 #include "kernels/3_kernel_shared_mem_blocking.cuh"
 #include "kernels/4_kernel_1D_blocktiling.cuh"
 #include "kernels/5_kernel_2D_blocktiling.cuh"
+#include "kernels/6_kernel_vectorize.cuh"
 
 std::vector<KernelSpec> getRegisteredKernels() {
-    const int selected_kernel = 5;
+    const int selected_kernel = 6;
     if constexpr (selected_kernel == 1){
         return {
             {"navie", launchNaiveSgemm}
@@ -31,6 +32,11 @@ std::vector<KernelSpec> getRegisteredKernels() {
     else if constexpr(selected_kernel == 5){
         return {
             {"2DBlockTiling", sgemm2DBlocktiling}
+        };
+    }
+    else if constexpr(selected_kernel == 6){
+        return {
+            {"Vectorize", sgemmVectorize}
         };
     }
     else{

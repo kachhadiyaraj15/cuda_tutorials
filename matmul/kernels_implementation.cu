@@ -10,7 +10,7 @@
 int main() {
     std::srand(0);
 
-    const std::string result_file = "benchmark_results/05_kernel_2DBlockTiling.csv";
+    const std::string result_file = "benchmark_results/06_kernel_vectorize.csv";
     const int repeat = 20;
 
     CUDA_CHECK(cudaSetDevice(0));
