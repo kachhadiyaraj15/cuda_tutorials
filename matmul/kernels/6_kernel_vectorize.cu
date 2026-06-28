@@ -21,8 +21,8 @@ namespace{
         const int cCol = blockIdx.x;
 
         // BN/TN are the number of threads to span a column
-        const int threadCol = threadIdx.x / (BN / TN);
-        const int threadRow = threadIdx.y % (BN/TN);
+        const int threadCol = threadIdx.x % (BN / TN);
+        const int threadRow = threadIdx.x / (BN / TN);
 
         // allocate space for the current blocktile in smem
         __shared__ float As[BM * BK];
@@ -44,7 +44,7 @@ namespace{
         float regM[TM] = {0.0};
         float regN[TN] = {0.0};
 
-        // outer-nost loop over block tiles
+        // outer-most loop over block tiles
         for(int bkIdx = 0; bkIdx < K; bkIdx += BK){
             // populate the SMEM caches, transpose A while laoding it 
             float4 tmp = reinterpret_cast<const float4 *>(&A[innerRowA * K + innerColA * 4])[0];

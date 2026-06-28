@@ -6,9 +6,10 @@
 #include "kernels/4_kernel_1D_blocktiling.cuh"
 #include "kernels/5_kernel_2D_blocktiling.cuh"
 #include "kernels/6_kernel_vectorize.cuh"
+#include "kernels/7_kernel_resolve_bank_conflicts.cuh"
 
 std::vector<KernelSpec> getRegisteredKernels() {
-    const int selected_kernel = 6;
+    const int selected_kernel = 7;
     if constexpr (selected_kernel == 1){
         return {
             {"navie", launchNaiveSgemm}
@@ -37,6 +38,11 @@ std::vector<KernelSpec> getRegisteredKernels() {
     else if constexpr(selected_kernel == 6){
         return {
             {"Vectorize", sgemmVectorize}
+        };
+    }
+    else if constexpr(selected_kernel == 7){
+        return {
+            {"BankConflicts", sgemmResolveBankConflicts}
         };
     }
     else{
